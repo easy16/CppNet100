@@ -3,6 +3,14 @@
 #include <windows.h>
 #include <stdio.h>
 #include <WS2tcpip.h>
+
+//要求c\s字节序一致、对齐
+struct DataPackage
+{
+	int age;
+	char name[32];
+};
+
 int main()
 {
 	//启动windows socket 2.x环境
@@ -52,7 +60,8 @@ int main()
 		int nLen = recv(_sock, recvBuf, 256, 0);
 		if (nLen > 0)
 		{
-			printf("接收到数据：%s \n", recvBuf);
+			DataPackage* dp = (DataPackage*)recvBuf;
+			printf("接收到数据：年龄=%d，姓名=%s \n", dp->age, dp->name);
 		}
 	}	
 	// 7 closesocket 关闭套接字
