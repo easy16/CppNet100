@@ -4,11 +4,37 @@
 #include <stdio.h>
 #include <WS2tcpip.h>
 
-//要求c\s字节序一致、对齐
-struct DataPackage
+enum CMD
 {
-	int age;
-	char name[32];
+	CMD_LOGIN,
+	CMD_LOGOUT,
+	CMD_ERROR
+};
+struct DataHeader
+{
+	short dataLength;
+	short cmd;
+};
+//DataPackage
+struct Login
+{
+	char userName[32];
+	char passWord[32];
+};
+
+struct LoginResult
+{
+	int result;
+};
+
+struct Logout
+{
+	char userName[32];
+};
+
+struct LogoutResult
+{
+	int result;
 };
 
 int main()
@@ -50,18 +76,37 @@ int main()
 			printf("收到退出命令，任务结束。");
 			break;
 		}
+		else if (0 == strcmp(cmdBuf, "login"))
+		{
+			Login login = { "lyd", "lydmm" };
+			DataHeader dh = { sizeof(Login), CMD_LOGIN };
+			// 5 向服务器发送请求
+			send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
+			send(_sock, (const char*)&login, sizeof(Login), 0);
+			// 接收服务器返回的数据
+			DataHeader retHeader = {};
+			LoginResult loginRet = {};
+			recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
+			recv(_sock, (char*)&loginRet, sizeof(LoginResult), 0);
+			printf("登录结果：%d\n", loginRet.result);
+		}
+		else if (0 == strcmp(cmdBuf, "logout"))
+		{
+			Logout logout = { "lyd"};
+			DataHeader dh = { sizeof(Logout), CMD_LOGOUT };
+			// 5 向服务器发送请求
+			send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
+			send(_sock, (const char*)&logout, sizeof(Logout), 0);
+			// 接收服务器返回的数据
+			DataHeader retHeader = {};
+			LogoutResult logoutRet = {};
+			recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
+			recv(_sock, (char*)&logoutRet, sizeof(LogoutResult), 0);
+			printf("登出结果：%d\n", logoutRet.result);
+		}
 		else
 		{
-			// 5 向服务器发送请求
-			send(_sock, cmdBuf, strlen(cmdBuf) + 1, 0);
-		}
-		// 6 recv 接收服务器信息
-		char recvBuf[256] = {};
-		int nLen = recv(_sock, recvBuf, 256, 0);
-		if (nLen > 0)
-		{
-			DataPackage* dp = (DataPackage*)recvBuf;
-			printf("接收到数据：年龄=%d，姓名=%s \n", dp->age, dp->name);
+			printf("不支持的命令，请重新输入。 \n");
 		}
 	}	
 	// 7 closesocket 关闭套接字

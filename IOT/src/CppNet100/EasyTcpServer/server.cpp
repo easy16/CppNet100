@@ -4,10 +4,37 @@
 #include <iostream>
 #include <WS2tcpip.h>
 //要求c\s字节序一致、对齐
-struct DataPackage 
+enum CMD
 {
-	int age;
-	char name[32];
+	CMD_LOGIN,
+	CMD_LOGOUT,
+	CMD_ERROR
+};
+struct DataHeader
+{
+	short dataLength;
+	short cmd;
+};
+//DataPackage
+struct Login 
+{
+	char userName[32];
+	char passWord[32];
+};
+
+struct LoginResult
+{
+	int result;
+};
+
+struct Logout
+{
+	char userName[32];
+};
+
+struct LogoutResult
+{
+	int result;
 };
 
 int main()
@@ -57,29 +84,47 @@ int main()
 	char sendBuf[20] = { '\0' };
 	printf("新客户端加入：socket = %d, IP = %s \n", (int)_cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
 
-	char _recvBuf[128] = {};
 	while (true)//循环重复接收新的客户端（accept在循环里时）/客户端指令
 	{
+		DataHeader header = {};
 		// 5 接收客户端数据
-		int nLen = recv(_cSock, _recvBuf, 128, 0);
+		int nLen = recv(_cSock, (char*)&header, sizeof(DataHeader), 0);
 		if (nLen <= 0)
 		{
 			printf("客户端已退出，任务结束。\n");
 			break;
 		}
-		printf("收到命令：%s \n", _recvBuf);
+		printf("收到命令：%d 数据长度：%d \n", header.cmd, header.dataLength);
 		// 6 处理请求
-		if (0 == strcmp(_recvBuf, "getInfo"))
+		switch (header.cmd)
 		{
-			// 7 send 向客户端发送一条数据		
-			DataPackage dp = { 80, "zhangsan" };
-			send(_cSock, (const char*)&dp, sizeof(DataPackage), 0);
-		}
-		else
-		{
-			// 7 send 向客户端发送一条数据		
-			char msgBuf[] = "???";
-			send(_cSock, msgBuf, strlen(msgBuf) + 1, 0);
+			case CMD_LOGIN:
+			{
+				Login login = {};
+				recv(_cSock, (char*)&login, sizeof(Login), 0);
+				//忽略判断用户名密码是否正确的过程
+				LoginResult ret = {1};
+				//先发消息头再发消息体
+				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+				send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
+			}
+			break;
+			case CMD_LOGOUT:
+			{
+				Logout logout = {};
+				recv(_cSock, (char*)&logout, sizeof(Logout), 0);
+				//忽略判断用户名密码是否正确的过程
+				LogoutResult ret = {0};
+				//先发消息头再发消息体
+				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+				send(_cSock, (char*)&ret, sizeof(LogoutResult), 0);
+			}
+			break;
+			default:
+				header.cmd = CMD_ERROR;
+				header.dataLength = 0;
+				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
+			break;
 		}
 	}
 	// 8 closesocket 关闭套接字
