@@ -3,11 +3,12 @@
 #include <windows.h>
 #include <stdio.h>
 #include <WS2tcpip.h>
-
 enum CMD
 {
 	CMD_LOGIN,
+	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,
+	CMD_LOGOUT_RESULT,
 	CMD_ERROR
 };
 struct DataHeader
@@ -15,25 +16,47 @@ struct DataHeader
 	short dataLength;
 	short cmd;
 };
-//DataPackage
-struct Login
+//DataPackage继承的方式在构造函数中初始化
+struct Login : public DataHeader
 {
+	Login()
+	{
+		dataLength = sizeof(Login);
+		cmd = CMD_LOGIN;
+	}
 	char userName[32];
 	char passWord[32];
 };
 
-struct LoginResult
+struct LoginResult : public DataHeader
 {
+	LoginResult()
+	{
+		dataLength = sizeof(LoginResult);
+		cmd = CMD_LOGIN_RESULT;
+		result = 0;
+	}
 	int result;
 };
 
-struct Logout
+struct Logout : public DataHeader
 {
+	Logout()
+	{
+		dataLength = sizeof(Logout);
+		cmd = CMD_LOGOUT;
+	}
 	char userName[32];
 };
 
-struct LogoutResult
+struct LogoutResult : public DataHeader
 {
+	LogoutResult()
+	{
+		dataLength = sizeof(LogoutResult);
+		cmd = CMD_LOGOUT_RESULT;
+		result = 0;
+	}
 	int result;
 };
 
@@ -78,29 +101,24 @@ int main()
 		}
 		else if (0 == strcmp(cmdBuf, "login"))
 		{
-			Login login = { "lyd", "lydmm" };
-			DataHeader dh = { sizeof(Login), CMD_LOGIN };
+			Login login;
+			strcpy_s(login.userName, "lyd");
+			strcpy_s(login.passWord, "lydmm");
 			// 5 向服务器发送请求
-			send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
 			send(_sock, (const char*)&login, sizeof(Login), 0);
 			// 接收服务器返回的数据
-			DataHeader retHeader = {};
 			LoginResult loginRet = {};
-			recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
 			recv(_sock, (char*)&loginRet, sizeof(LoginResult), 0);
 			printf("登录结果：%d\n", loginRet.result);
 		}
 		else if (0 == strcmp(cmdBuf, "logout"))
 		{
-			Logout logout = { "lyd"};
-			DataHeader dh = { sizeof(Logout), CMD_LOGOUT };
+			Logout logout;
+			strcpy_s(logout.userName, "lyd");
 			// 5 向服务器发送请求
-			send(_sock, (const char*)&dh, sizeof(DataHeader), 0);
 			send(_sock, (const char*)&logout, sizeof(Logout), 0);
 			// 接收服务器返回的数据
-			DataHeader retHeader = {};
 			LogoutResult logoutRet = {};
-			recv(_sock, (char*)&retHeader, sizeof(DataHeader), 0);
 			recv(_sock, (char*)&logoutRet, sizeof(LogoutResult), 0);
 			printf("登出结果：%d\n", logoutRet.result);
 		}

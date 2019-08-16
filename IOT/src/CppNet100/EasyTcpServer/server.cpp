@@ -7,7 +7,9 @@
 enum CMD
 {
 	CMD_LOGIN,
+	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,
+	CMD_LOGOUT_RESULT,
 	CMD_ERROR
 };
 struct DataHeader
@@ -15,25 +17,47 @@ struct DataHeader
 	short dataLength;
 	short cmd;
 };
-//DataPackage
-struct Login 
+//DataPackage继承的方式在构造函数中初始化
+struct Login : public DataHeader
 {
+	Login()
+	{
+		dataLength = sizeof(Login);
+		cmd = CMD_LOGIN;
+	}
 	char userName[32];
 	char passWord[32];
 };
 
-struct LoginResult
+struct LoginResult	: public DataHeader
 {
+	LoginResult()
+	{
+		dataLength = sizeof(LoginResult);
+		cmd = CMD_LOGIN_RESULT;
+		result = 0;
+	}
 	int result;
 };
 
-struct Logout
+struct Logout : public DataHeader
 {
+	Logout()
+	{
+		dataLength = sizeof(Logout);
+		cmd = CMD_LOGOUT;
+	}
 	char userName[32];
 };
 
-struct LogoutResult
+struct LogoutResult : public DataHeader
 {
+	LogoutResult()
+	{
+		dataLength = sizeof(LogoutResult);
+		cmd = CMD_LOGOUT_RESULT;
+		result = 0;
+	}
 	int result;
 };
 
@@ -94,29 +118,28 @@ int main()
 			printf("客户端已退出，任务结束。\n");
 			break;
 		}
-		printf("收到命令：%d 数据长度：%d \n", header.cmd, header.dataLength);
 		// 6 处理请求
 		switch (header.cmd)
 		{
 			case CMD_LOGIN:
 			{
 				Login login = {};
-				recv(_cSock, (char*)&login, sizeof(Login), 0);
+				recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
+				printf("收到命令：CMD_LOGIN 数据长度：%d,  userName=%s passWord=%s \n", login.dataLength, login.userName, login.passWord);
 				//忽略判断用户名密码是否正确的过程
-				LoginResult ret = {1};
+				LoginResult ret;
 				//先发消息头再发消息体
-				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
 				send(_cSock, (char*)&ret, sizeof(LoginResult), 0);
 			}
 			break;
 			case CMD_LOGOUT:
 			{
 				Logout logout = {};
-				recv(_cSock, (char*)&logout, sizeof(Logout), 0);
+				recv(_cSock, (char*)&logout + sizeof(DataHeader), sizeof(Logout) - sizeof(DataHeader), 0);
+				printf("收到命令：CMD_LOGOUT 数据长度：%d,  userName=%s passWord=%s \n", logout.dataLength, logout.userName);
 				//忽略判断用户名密码是否正确的过程
-				LogoutResult ret = {0};
+				LogoutResult ret;
 				//先发消息头再发消息体
-				send(_cSock, (char*)&header, sizeof(DataHeader), 0);
 				send(_cSock, (char*)&ret, sizeof(LogoutResult), 0);
 			}
 			break;
