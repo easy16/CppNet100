@@ -169,7 +169,8 @@ int main()
 		//nfds 是一个整数值 是指fd_set集合中所有描述符（socket）的范围，而不是数量，
 		//既是所有文件描述符最大值+1 在windows中这个参数可以写0
 		//select最后一个参数是null，是阻塞模式（有数据可操作的时候才返回），纯接收数据的服务可以接受
-		int ret = select(_sock + 1, &fdRead, &fdWrite, &fdExp, NULL);
+		timeval t = {0, 0};//非阻塞网络模型  综合性网络程序
+		int ret = select(_sock + 1, &fdRead, &fdWrite, &fdExp, &t);
 		if (ret < 0)
 		{
 			printf("select任务结束。\n");
