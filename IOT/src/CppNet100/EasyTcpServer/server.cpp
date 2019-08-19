@@ -160,15 +160,15 @@ int main()
 	
 	while (true)//循环重复接收新的客户端（accept在循环里时）/客户端指令
 	{
-		//伯克利socket
-		fd_set fdRead;
+		//伯克利套接字 BSDsocket
+		fd_set fdRead;//描述符（socket）集合
 		fd_set fdWrite;
 		fd_set fdExp;
-		//清空数组
+		//集合计数清零
 		FD_ZERO(&fdRead);
 		FD_ZERO(&fdWrite);
 		FD_ZERO(&fdExp);
-		//赋值
+		//将socket加入集合
 		FD_SET(_sock, &fdRead);
 		FD_SET(_sock, &fdWrite);
 		FD_SET(_sock, &fdExp);
@@ -188,6 +188,7 @@ int main()
 			printf("select任务结束。\n");
 			break;
 		}
+		//判断描述符是否在集合中
 		if (FD_ISSET(_sock, &fdRead))
 		{
 			FD_CLR(_sock, &fdRead);
@@ -201,15 +202,18 @@ int main()
 			{
 				printf("错误，接收到无效的客户端SOCKET。。。\n");
 			}
-			for (int n = (int)g_clients.size() - 1; n >= 0; n--)
+			else
 			{
-				NewUserJoin userJoin;
-				userJoin.socketID = _cSock;
-				send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
-			}
-			char sendBuf[20] = { '\0' };
-			printf("新客户端加入：socket = %d, IP = %s \n", (int)_cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
-			g_clients.push_back(_cSock);
+				for (int n = (int)g_clients.size() - 1; n >= 0; n--)
+				{
+					NewUserJoin userJoin;
+					userJoin.socketID = _cSock;
+					send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+				}
+				char sendBuf[20] = { '\0' };
+				printf("新客户端加入：socket = %d, IP = %s \n", (int)_cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
+				g_clients.push_back(_cSock);
+			}			
 		}
 		for (size_t n = 0; n < fdRead.fd_count; n++)
 		{
