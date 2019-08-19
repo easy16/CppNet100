@@ -11,6 +11,7 @@ enum CMD
 	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,
 	CMD_LOGOUT_RESULT,
+	CMD_NEW_USER_JOIN,
 	CMD_ERROR
 };
 struct DataHeader
@@ -62,6 +63,17 @@ struct LogoutResult : public DataHeader
 	int result;
 };
 
+struct NewUserJoin : public DataHeader
+{
+	NewUserJoin()
+	{
+		dataLength = sizeof(NewUserJoin);
+		cmd = CMD_NEW_USER_JOIN;
+		socketID = 0;
+	}
+	int socketID;
+};
+
 std::vector<SOCKET> g_clients;
 
 int processDeal(SOCKET _cSock)
@@ -73,7 +85,7 @@ int processDeal(SOCKET _cSock)
 	DataHeader* header = (DataHeader*)szRecv;
 	if (nLen <= 0)
 	{
-		printf("客户端已退出，任务结束。\n");
+		printf("客户端<Socket=%d>已退出，任务结束。\n", _cSock);
 		return -1;
 	}
 	// 6 处理请求
@@ -83,7 +95,7 @@ int processDeal(SOCKET _cSock)
 	{
 		Login login = {};
 		recv(_cSock, (char*)&login + sizeof(DataHeader), sizeof(Login) - sizeof(DataHeader), 0);
-		printf("收到命令：CMD_LOGIN 数据长度：%d,  userName=%s passWord=%s \n", login.dataLength, login.userName, login.passWord);
+		printf("收到客户端<Socket=%d>请求：CMD_LOGIN 数据长度：%d,  userName=%s passWord=%s \n", _cSock, login.dataLength, login.userName, login.passWord);
 		//忽略判断用户名密码是否正确的过程
 		LoginResult ret;
 		//先发消息头再发消息体
@@ -94,7 +106,7 @@ int processDeal(SOCKET _cSock)
 	{
 		Logout logout = {};
 		recv(_cSock, (char*)&logout + sizeof(DataHeader), sizeof(Logout) - sizeof(DataHeader), 0);
-		printf("收到命令：CMD_LOGOUT 数据长度：%d,  userName=%s passWord=%s \n", logout.dataLength, logout.userName);
+		printf("收到客户端<Socket=%d>请求：CMD_LOGOUT 数据长度：%d,  userName=%s passWord=%s \n", _cSock, logout.dataLength, logout.userName);
 		//忽略判断用户名密码是否正确的过程
 		LogoutResult ret;
 		//先发消息头再发消息体
@@ -169,7 +181,7 @@ int main()
 		//nfds 是一个整数值 是指fd_set集合中所有描述符（socket）的范围，而不是数量，
 		//既是所有文件描述符最大值+1 在windows中这个参数可以写0
 		//select最后一个参数是null，是阻塞模式（有数据可操作的时候才返回），纯接收数据的服务可以接受
-		timeval t = {0, 0};//非阻塞网络模型  综合性网络程序
+		timeval t = {0, 0};//查询时间为1 最大查询时间为1并非等待1s 非阻塞网络模型  综合性网络程序
 		int ret = select(_sock + 1, &fdRead, &fdWrite, &fdExp, &t);
 		if (ret < 0)
 		{
@@ -189,6 +201,12 @@ int main()
 			{
 				printf("错误，接收到无效的客户端SOCKET。。。\n");
 			}
+			for (int n = (int)g_clients.size() - 1; n >= 0; n--)
+			{
+				NewUserJoin userJoin;
+				userJoin.socketID = _cSock;
+				send(g_clients[n], (const char*)&userJoin, sizeof(NewUserJoin), 0);
+			}
 			char sendBuf[20] = { '\0' };
 			printf("新客户端加入：socket = %d, IP = %s \n", (int)_cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
 			g_clients.push_back(_cSock);
@@ -204,6 +222,7 @@ int main()
 				}
 			}
 		}
+		printf("空闲时间处理其他业务。。。。\n");
 	}
 	for (size_t n = g_clients.size() - 1; n >= 0; n--)
 	{
