@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <stdio.h>
 #include <WS2tcpip.h>
+#include <thread>
+
 enum CMD
 {
 	CMD_LOGIN,
@@ -71,6 +73,42 @@ struct NewUserJoin : public DataHeader
 	}
 	int socketID;
 };
+bool g_bRun = true;
+void cmdThread( SOCKET _sock)
+{
+	while (true)
+	{
+		// 3 输入请求
+		char cmdBuf[256] = {};
+		scanf_s("%s", cmdBuf, 256);
+		// 4 处理请求
+		if (0 == strcmp(cmdBuf, "exit"))
+		{
+			g_bRun = false;
+			printf("退出cmdThread线程。\n");
+			break;
+		}
+		else if (0 == strcmp(cmdBuf, "login"))
+		{
+			Login login;
+			strcpy_s(login.userName, "lyd");
+			strcpy_s(login.passWord, "lydmm");
+			// 5 向服务器发送请求
+			send(_sock, (const char*)&login, sizeof(Login), 0);
+		}
+		else if (0 == strcmp(cmdBuf, "logout"))
+		{
+			Logout logout;
+			strcpy_s(logout.userName, "lyd");
+			// 5 向服务器发送请求
+			send(_sock, (const char*)&logout, sizeof(Logout), 0);
+		}
+		else
+		{
+			printf("不支持的命令，请重新输入。 \n");
+		}
+	}	
+}
 
 int processDeal(SOCKET _cSock)
 {
@@ -140,8 +178,10 @@ int main()
 	else {
 		printf("连接服务器成功。。。\n");
 	}
-		
-	while (true)
+	//启动线程
+	std::thread t1(cmdThread, _sock);
+	t1.detach();//与主线程分离
+	while (g_bRun)
 	{
 		//伯克利socket
 		fd_set fdRead;
@@ -149,7 +189,7 @@ int main()
 		FD_ZERO(&fdRead);
 		//赋值
 		FD_SET(_sock, &fdRead);
-		timeval t = { 0, 0 };
+		timeval t = { 1, 0 };
 		int ret = select(_sock, &fdRead, 0, 0, &t);
 		if (ret < 0)
 		{
@@ -166,11 +206,9 @@ int main()
 				break;
 			}			
 		}
-		printf("空闲时间处理其他业务。。。。\n");
-		Login login;
-		strcpy_s(login.userName, "lyd");
-		strcpy_s(login.passWord, "lyd");
-		send(_sock, (const char*)&login, sizeof(Login), 0);
+		//线程thread
+		//printf("空闲时间处理其他业务。。。。\n");
+		
 		//Sleep(3000);
 	}	
 	// 7 closesocket 关闭套接字
@@ -178,7 +216,7 @@ int main()
 	//--------------
 	//清除windows socket环境
 	WSACleanup();
-	printf("已退出，任务结束。");
+	printf("已退出，任务结束。\n");
 	getchar();
 	return 0;
 }
