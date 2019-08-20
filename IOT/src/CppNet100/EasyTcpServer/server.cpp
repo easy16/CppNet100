@@ -133,7 +133,7 @@ int processDeal(SOCKET _cSock)
 	}
 	return 0;
 }
-
+int g_port = 4567;
 int main()
 {
 	g_clients.clear();
@@ -153,7 +153,7 @@ int main()
 	// 2 bind 绑定用于接收客户端连接的网络端口
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;//网络类型
-	_sin.sin_port = htons(4567);//防止主机中的short类型与网络字节序中的不同
+	_sin.sin_port = htons(g_port);//防止主机中的short类型与网络字节序中的不同
 #ifdef _WIN32
 	_sin.sin_addr.S_un.S_addr = INADDR_ANY;
 #else
@@ -164,15 +164,15 @@ int main()
 		printf("错误，绑定网络端口失败。。。\n");
 	}
 	else {
-		printf("绑定网络端口成功。。。\n");
+		printf("绑定网络端口%d成功。。。\n", g_port);
 	}
 	// 3 listen 监听网络端口
 	if (SOCKET_ERROR == listen(_sock, 5))
 	{
-		printf("错误，监听网络端口失败。。。\n");
+		printf("错误，监听网络端口%d失败。。。\n", g_port);
 	}
 	else {
-		printf("监听网络端口成功。。。\n");
+		printf("监听网络端口%d成功。。。\n", g_port);
 	}
 	
 	while (true)//循环重复接收新的客户端（accept在循环里时）/客户端指令
