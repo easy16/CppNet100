@@ -1,8 +1,10 @@
-#define WIN32_LEAN_AND_MEAN	//避免引用早期的windows库
+
 //跨平台头文件
 #ifdef _WIN32
+	#define WIN32_LEAN_AND_MEAN	//避免引用早期的windows库
 	#include <windows.h>
 	#include <WinSock2.h>
+	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <unistd.h>//uni std unix系统下的标准库
 	#include<arpa/inet.h>
@@ -185,7 +187,7 @@ int main()
 	//_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	inet_pton(AF_INET, "127.0.0.1", (void*)&_sin.sin_addr.S_un.S_addr);
 #else
-	//_sin.sin_addr.S_addr = inet_addr("127.0.0.1");
+	//_sin.sin_addr.s_addr = inet_addr("127.0.0.1");
 	inet_pton(AF_INET, "127.0.0.1", (void*)&_sin.sin_addr.S_addr);
 #endif
 	
@@ -209,7 +211,7 @@ int main()
 		//赋值
 		FD_SET(_sock, &fdRead);
 		timeval t = { 1, 0 };
-		//
+		//其他平台需要sock+1，否则收不到服务端消息
 		int ret = select(_sock+1, &fdRead, 0, 0, &t);
 		if (ret < 0)
 		{
