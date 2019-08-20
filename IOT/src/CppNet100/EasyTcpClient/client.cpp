@@ -1,6 +1,17 @@
 #define WIN32_LEAN_AND_MEAN	//避免引用早期的windows库
-#include <WinSock2.h>
-#include <windows.h>
+//跨平台头文件
+#ifdef _WIN32
+	#include <windows.h>
+	#include <WinSock2.h>
+#else
+	#include <unistd.h>//uni std unix系统下的标准库
+	#include<arpa/inet.h>
+	#include <string.h>
+
+	#define  SOCKET int
+	#define  INVALID_SOCKET		(SOCKET)(~0)
+	#define  SOCKET_ERRROR						(-1)
+#endif
 #include <stdio.h>
 #include <WS2tcpip.h>
 #include <thread>
@@ -153,10 +164,12 @@ int processDeal(SOCKET _cSock)
 
 int main()
 {
+#ifdef _WIN32
 	//启动windows socket 2.x环境
 	WORD ver = MAKEWORD(2, 2);
 	WSADATA data;
 	WSAStartup(ver, &data);
+#endif
 	//-- 用socket api 建立简易TCP客户端
 	// 1 建立一个socket;Ipv4，面向数据流，TCP协议
 	SOCKET _sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -168,8 +181,14 @@ int main()
 	sockaddr_in _sin = {};
 	_sin.sin_family = AF_INET;//网络类型
 	_sin.sin_port = htons(4567);//防止主机中的short类型与网络字节序中的不同
+#ifdef _WIN32
 	//_sin.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
 	inet_pton(AF_INET, "127.0.0.1", (void*)&_sin.sin_addr.S_un.S_addr);
+#else
+	//_sin.sin_addr.S_addr = inet_addr("127.0.0.1");
+	inet_pton(AF_INET, "127.0.0.1", (void*)&_sin.sin_addr.S_addr);
+#endif
+	
 	int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
 	if (SOCKET_ERROR == ret)
 	{
@@ -190,7 +209,8 @@ int main()
 		//赋值
 		FD_SET(_sock, &fdRead);
 		timeval t = { 1, 0 };
-		int ret = select(_sock, &fdRead, 0, 0, &t);
+		//
+		int ret = select(_sock+1, &fdRead, 0, 0, &t);
 		if (ret < 0)
 		{
 			printf("select任务结束1。\n");
@@ -212,10 +232,15 @@ int main()
 		//Sleep(3000);
 	}	
 	// 7 closesocket 关闭套接字
-	closesocket(_sock);
+
 	//--------------
+#ifdef _WIN32
+	closesocket(_sock);
 	//清除windows socket环境
 	WSACleanup();
+#else
+	close(_sock);
+#endif
 	printf("已退出，任务结束。\n");
 	getchar();
 	return 0;
