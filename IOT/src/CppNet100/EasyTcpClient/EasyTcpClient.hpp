@@ -22,6 +22,7 @@
 
 class EasyTcpClient
 {
+private:
 	SOCKET _sock;
 public:
 	EasyTcpClient()
@@ -84,13 +85,13 @@ public:
 #endif
 
 		int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
-		printf("<socket=%d>正在连接服务器<%s:%d>。。。\n", _sock, ip, port);
+		printf("<socket=%d>正在连接服务器<%s:%d>。。。\n", (int)_sock, ip, port);
 		if (SOCKET_ERROR == ret)
 		{
-			printf("<socket=%d>错误，连接服务器<%s:%d>失败。。。\n", _sock, ip, port);
+			printf("<socket=%d>错误，连接服务器<%s:%d>失败。。。\n", (int)_sock, ip, port);
 		}
 		else {
-			printf("<socket=%d>连接服务器<%s:%d>成功。。。\n", _sock, ip, port);
+			printf("<socket=%d>连接服务器<%s:%d>成功。。。\n", (int)_sock, ip, port);
 		}
 	}
 
@@ -128,7 +129,7 @@ public:
 			int ret = select(_sock + 1, &fdRead, 0, 0, &t);
 			if (ret < 0)
 			{
-				printf("<socket=%d>select任务结束1。\n", _sock);
+				printf("<socket=%d>select任务结束1。\n", (int)_sock);
 				CloseSocket();//不关闭连接 onRun 会重复提醒
 				return false;
 			}
@@ -138,7 +139,7 @@ public:
 
 				if (-1 == RecvData(_sock))
 				{
-					printf("<socket=%d>select任务结束2。\n", _sock);
+					printf("<socket=%d>select任务结束2。\n", (int)_sock);
 					CloseSocket();
 					return false;
 				}
@@ -164,7 +165,7 @@ public:
 		DataHeader* header = (DataHeader*)szRecv;
 		if (nLen <= 0)
 		{
-			printf("<socket=%d>与服务器断开连接，任务结束。\n", _sock);
+			printf("<socket=%d>与服务器断开连接，任务结束。\n", (int)_sock);
 			return -1;
 		}
 		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
@@ -181,19 +182,19 @@ public:
 			case CMD_LOGIN_RESULT:
 				{
 					LoginResult* login = (LoginResult*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_LOGIN_RESULT 内容：%d \n", _sock, login->result);
+					printf("<socket=%d>收到服务器数据消息：CMD_LOGIN_RESULT 内容：%d \n", (int)_sock, login->result);
 				}
 				break;
 			case CMD_LOGOUT_RESULT:
 				{
 					LogoutResult* logout = (LogoutResult*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_LOGOUT_RESULT 内容：%d \n", _sock, logout->result);
+					printf("<socket=%d>收到服务器数据消息：CMD_LOGOUT_RESULT 内容：%d \n", (int)_sock, logout->result);
 				}
 				break;
 			case CMD_NEW_USER_JOIN:
 				{
 					NewUserJoin* userJoin = (NewUserJoin*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_NEW_USER_JOIN 内容：%d \n", _sock, userJoin->socketID);
+					printf("<socket=%d>收到服务器数据消息：CMD_NEW_USER_JOIN 内容：%d \n", (int)_sock, userJoin->socketID);
 				}
 				break;
 		}
