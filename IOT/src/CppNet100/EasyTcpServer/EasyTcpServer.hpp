@@ -3,24 +3,26 @@
 
 //跨平台头文件
 #ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN	//避免引用早期的windows库
-#define _WINSOCK_DEPRECATED_NO_WARNINGS	//避免不能使用socket的旧函数出现错误
-#include <WS2tcpip.h>	//socket的新函数头文件
-#include <windows.h>
-#include <WinSock2.h>
-#pragma comment(lib, "ws2_32.lib")
+	#define FD_SETSIZE			10024//突破windows下select64个的限制
+	#define WIN32_LEAN_AND_MEAN	//避免引用早期的windows库
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS	//避免不能使用socket的旧函数出现错误
+	#include <WS2tcpip.h>	//socket的新函数头文件
+	#include <windows.h>
+	#include <WinSock2.h>
+	#pragma comment(lib, "ws2_32.lib")
 #else
-#include <unistd.h>//uni std unix系统下的标准库
-#include<arpa/inet.h>
-#include <string.h>
+	#include <unistd.h>//uni std unix系统下的标准库
+	#include<arpa/inet.h>
+	#include <string.h>
 
-#define  SOCKET int
-#define  INVALID_SOCKET		(SOCKET)(~0)
-#define  SOCKET_ERRROR						(-1)
+	#define  SOCKET int
+	#define  INVALID_SOCKET		(SOCKET)(~0)
+	#define  SOCKET_ERRROR						(-1)
 #endif 
 #include <stdio.h>
 #include <vector>
 #include "MessageHeader.hpp"
+#include "CELLTimestamp.hpp"
 
 //缓冲区最小单元大小
 #ifndef RECV_BUFF_SIZE
@@ -69,10 +71,13 @@ class EasyTcpServer
 private:
 	SOCKET _sock;
 	std::vector<ClientSocket*> _clients;//创建指针（动态内存）不会崩溃
+	CELLTimestamp _tTime;
+	int _recvCount;
 public:
 	EasyTcpServer()
 	{
 		_sock = INVALID_SOCKET;
+		_recvCount = 0;
 	}
 	virtual ~EasyTcpServer()
 	{
@@ -146,7 +151,7 @@ public:
 			printf("错误，绑定网络端口<%d>失败。。。\n", port);
 		}
 		else {
-			printf("绑定网络端口<%d>成功。。。\n", port);
+			//printf("绑定网络端口<%d>成功。。。\n", port);
 		}
 		return ret;
 	}
@@ -160,7 +165,7 @@ public:
 			printf("socket=<%d>错误，监听网络端口失败。。。\n", (int)_sock);
 		}
 		else {
-			printf("socket=<%d>监听网络端口成功。。。\n", (int)_sock);
+			//printf("socket=<%d>监听网络端口成功。。。\n", (int)_sock);
 		}
 		return ret;
 	}
@@ -182,10 +187,10 @@ public:
 		}
 		else
 		{			
-			NewUserJoin userJoin;
-			SendData2All(&userJoin);
-			char sendBuf[20] = { '\0' };
-			printf("socket=<%d>新客户端加入：socket = %d, IP = %s \n", (int)_sock, (int)cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
+			//NewUserJoin userJoin;
+			//SendData2All(&userJoin);
+			//char sendBuf[20] = { '\0' };
+			//printf("socket=<%d>新客户端<%d>加入：socket = %d, IP = %s \n", (int)_sock, _clients.size(), (int)cSock, inet_ntop(AF_INET, (void*)&clientAddr.sin_addr, sendBuf, 16));
 			_clients.push_back(new ClientSocket(cSock));
 		}
 		return cSock;
@@ -265,6 +270,7 @@ public:
 			{
 				FD_CLR(_sock, &fdRead);
 				AcceptClient();
+				return true;//只要有新连接暂时不处理数据
 			}
 			for (int n = (int)_clients.size() - 1; n >= 0; n--)
 			{
@@ -339,6 +345,14 @@ public:
 	//响应网络消息
 	virtual void OnNetMsg(SOCKET cSock, DataHeader* header)
 	{
+		_recvCount++;
+		auto t1 = _tTime.getElapsedSecond();
+		if (t1  >= 1.0)
+		{
+			printf("time<%lf>,socket<%d>, clients<%d>, recvCount<%d>\n", t1, _sock, _clients.size(), _recvCount);
+			_recvCount = 0;
+			_tTime.update();
+		}
 		// 6 处理请求
 		switch (header->cmd)
 		{
@@ -347,8 +361,8 @@ public:
 					Login* login = (Login*)header;
 					//printf("收到客户端<Socket=%d>请求：CMD_LOGIN 数据长度：%d,  userName=%s passWord=%s \n", cSock, login->dataLength, login->userName, login->passWord);
 					//忽略判断用户名密码是否正确的过程
-					LoginResult ret;
-					SendData(cSock, &ret);
+					//LoginResult ret;
+					//SendData(cSock, &ret);
 				}
 				break;
 			case CMD_LOGOUT:
@@ -356,8 +370,8 @@ public:
 					Logout* logout = (Logout*)header;
 					//printf("收到客户端<Socket=%d>请求：CMD_LOGOUT 数据长度：%d,  userName=%s\n", cSock, logout->dataLength, logout->userName);
 					//忽略判断用户名密码是否正确的过程
-					LogoutResult ret;
-					SendData(cSock, &ret);
+					//LogoutResult ret;
+					//SendData(cSock, &ret);
 				}
 				break;
 			default:

@@ -58,7 +58,7 @@ public:
 		}
 		else
 		{
-			printf("建立socket=<%d>成功。。。\n", _sock);
+			//printf("建立socket=<%d>成功。。。\n", _sock);
 		}
 		return 0;
 	}
@@ -85,13 +85,13 @@ public:
 #endif
 
 		int ret = connect(_sock, (sockaddr*)&_sin, sizeof(sockaddr_in));
-		printf("<socket=%d>正在连接服务器<%s:%d>。。。\n", (int)_sock, ip, port);
+		//printf("<socket=%d>正在连接服务器<%s:%d>。。。\n", (int)_sock, ip, port);
 		if (SOCKET_ERROR == ret)
 		{
 			printf("<socket=%d>错误，连接服务器<%s:%d>失败。。。\n", (int)_sock, ip, port);
 		}
 		else {
-			printf("<socket=%d>连接服务器<%s:%d>成功。。。\n", (int)_sock, ip, port);
+			//printf("<socket=%d>连接服务器<%s:%d>成功。。。\n", (int)_sock, ip, port);
 		}
 	}
 
