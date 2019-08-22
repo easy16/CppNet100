@@ -2,8 +2,8 @@
 #include <thread>
 
 #include "EasyTcpClient.hpp"
-
-void cmdThread( EasyTcpClient* client)
+bool g_bRun = true;
+void cmdThread( /*EasyTcpClient* client*/)
 {
 	while (true)
 	{
@@ -13,25 +13,26 @@ void cmdThread( EasyTcpClient* client)
 		// 4 处理请求
 		if (0 == strcmp(cmdBuf, "exit"))
 		{
-			client->CloseSocket();
+			g_bRun = false;
+			//client->CloseSocket();
 			printf("退出cmdThread线程。\n");
 			break;
 		}
-		else if (0 == strcmp(cmdBuf, "login"))
-		{
-			Login login;
-			strcpy_s(login.userName, "lyd");
-			strcpy_s(login.passWord, "lydmm");
-			// 5 向服务器发送请求
-			client->SendData(&login);
-		}
-		else if (0 == strcmp(cmdBuf, "logout"))
-		{
-			Logout logout;
-			strcpy_s(logout.userName, "lyd");
-			// 5 向服务器发送请求
-			client->SendData(&logout);
-		}
+		//else if (0 == strcmp(cmdBuf, "login"))
+		//{
+		//	Login login;
+		//	strcpy_s(login.userName, "lyd");
+		//	strcpy_s(login.passWord, "lydmm");
+		//	// 5 向服务器发送请求
+		//	client->SendData(&login);
+		//}
+		//else if (0 == strcmp(cmdBuf, "logout"))
+		//{
+		//	Logout logout;
+		//	strcpy_s(logout.userName, "lyd");
+		//	// 5 向服务器发送请求
+		//	client->SendData(&logout);
+		//}
 		else
 		{
 			printf("不支持的命令，请重新输入。 \n");
@@ -41,16 +42,35 @@ void cmdThread( EasyTcpClient* client)
 
 int main()
 {
-	EasyTcpClient client;//声明多个对象就可以连接多个服务器
-	client.ConnectServer("127.0.0.1", 4567);
-	//启动线程
-	std::thread t1(cmdThread, &client);
-	t1.detach();//与主线程分离
-	while (client.isRun())
+	const int cCount = FD_SETSIZE - 1;//windows默认客户端最大个数，减去一个服务端，超出了则不会传输数据
+	//需要用指针，不然栈内存会爆掉
+	EasyTcpClient* client[cCount];//声明多个对象就可以连接多个服务器
+	for (int n = 0; n < cCount; n++)
 	{
-		client.OnRun();
+		client[n] = new EasyTcpClient();
+		client[n]->ConnectServer("127.0.0.1", 4567);
+	}
+	
+	//启动线程
+	std::thread t1(cmdThread);
+	t1.detach();//与主线程分离
+
+	Login login;
+	strcpy_s(login.userName, "lyd");
+	strcpy_s(login.passWord, "lydmm");
+	while (g_bRun/*client.isRun()*/)
+	{
+		for (int n = 0; n < cCount; n++)
+		{			
+			client[n]->SendData(&login);
+			client[n]->OnRun();
+		}
+		
 	}	
-	client.CloseSocket();
+	for (int n = 0; n < cCount; n++)
+	{
+		client[n]->CloseSocket();
+	}
 	printf("已退出，任务结束。\n");
 	getchar();
 	return 0;

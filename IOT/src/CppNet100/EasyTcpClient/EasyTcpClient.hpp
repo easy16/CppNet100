@@ -155,21 +155,55 @@ public:
 		return _sock != INVALID_SOCKET;
 	}
 
+	//临时的成员变量
+	//缓冲区最小单元大小
+#ifndef RECV_BUFF_SIZE
+#define RECV_BUFF_SIZE 10240
+#endif
+
+	//接收缓冲区 成员变量最好在构造函数中初始化
+	char _szRecv[RECV_BUFF_SIZE] = {};
+	//第二缓冲区 消息缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE*10] = {};
+	//消息缓冲区的数据尾部位置
+	int _lastPos = 0;
 	//接收数据 处理粘包 拆分包
 	int RecvData(SOCKET _cSock)
 	{
-		//缓冲区
-		char szRecv[4096] = {};
-		// 5 接收客户端数据
-		int nLen = (int)recv(_cSock, szRecv, sizeof(DataHeader), 0);
-		DataHeader* header = (DataHeader*)szRecv;
+		// 5 接收数据
+		int nLen = (int)recv(_cSock, _szRecv, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			printf("<socket=%d>与服务器断开连接，任务结束。\n", (int)_sock);
 			return -1;
 		}
-		recv(_cSock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-		OnNetMsg(header);
+		//将收取的数据拷贝到消息缓冲区
+		memcpy(_szMsgBuf + _lastPos, _szRecv, nLen);
+		//消息缓冲区的数据尾部位置后移
+		_lastPos += nLen;
+		//判断消息缓冲区的数据长度是否大于消息头DataHeader长度		
+		while (_lastPos >= sizeof(DataHeader))//循环解决粘包
+		{
+			//这是就可以知道当前消息的长度
+			DataHeader* header = (DataHeader*)_szMsgBuf;
+			//判断消息缓冲区的数据长度大于消息长度		
+			if (_lastPos >= header->dataLength)//判断解决少包
+			{
+				//消息缓冲区剩余未处理数据的长度   需要提前保存下来
+				int nSize = _lastPos - header->dataLength;//从接受缓冲区多取过来的一部分
+				//处理网络消息
+				OnNetMsg(header);//header被处理过后其中header被强制转换已经改变
+				//将消息缓冲区剩余未处理数据前移
+				memcpy(_szMsgBuf, _szMsgBuf + header->dataLength, nSize);
+				//消息缓冲区的数据尾部位置前移
+				_lastPos = nSize;
+			}
+			else
+			{
+				//消息缓冲区剩余数据不够一条完整消息
+				break;
+			}
+		}
 		return 0;
 	}
 
@@ -182,19 +216,29 @@ public:
 			case CMD_LOGIN_RESULT:
 				{
 					LoginResult* login = (LoginResult*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_LOGIN_RESULT 内容：%d \n", (int)_sock, login->result);
+					//printf("<socket=%d>收到服务器数据消息：CMD_LOGIN_RESULT 内容：%d \n", (int)_sock, login->result);
 				}
 				break;
 			case CMD_LOGOUT_RESULT:
 				{
 					LogoutResult* logout = (LogoutResult*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_LOGOUT_RESULT 内容：%d \n", (int)_sock, logout->result);
+					//printf("<socket=%d>收到服务器数据消息：CMD_LOGOUT_RESULT 内容：%d \n", (int)_sock, logout->result);
 				}
 				break;
 			case CMD_NEW_USER_JOIN:
 				{
 					NewUserJoin* userJoin = (NewUserJoin*)header;
-					printf("<socket=%d>收到服务器数据消息：CMD_NEW_USER_JOIN 内容：%d \n", (int)_sock, userJoin->socketID);
+					//printf("<socket=%d>收到服务器数据消息：CMD_NEW_USER_JOIN 内容：%d \n", (int)_sock, userJoin->socketID);
+				}
+				break;
+			case CMD_ERROR:
+				{
+					printf("<socket=%d>收到服务器数据消息：CMD_ERROR，数据长度：%d \n", (int)_sock, header->dataLength);
+				}
+				break;
+			default:
+				{
+					printf("<socket=%d>收到未定义消息，数据长度：%d \n", (int)_sock, header->dataLength);
 				}
 				break;
 		}
